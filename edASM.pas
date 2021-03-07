@@ -20,8 +20,7 @@ value = number | label .
 program edASM;
 uses sysutils;
 
-const debug=false;
-
+const debug=true;
 
 type symbols = (mn_ADC,mn_AND,mn_ASL,mn_BCC,mn_BCS,mn_BEQ,mn_BIT,mn_BMI,mn_BNE,mn_BPL,mn_BRK,mn_BVC,mn_BVS,
         CLC,mn_CLD,mn_CLI,mn_CLV,mn_CMP,mn_CPX,mn_CPY,mn_DEC,mn_DEX,mn_DEY,mn_EOR,mn_INC,mn_INX,mn_INY,mn_JMP,
@@ -33,7 +32,7 @@ const mn_names: array[mn_ADC..mn_TYA] of string = ('ADC','AND','ASL','BCC','BCS'
     'JSR','LDA','LDX','LDY','LSR','NOP','ORA','PHA','PHP','PLA','PLP','ROL','ROR','RTI','RTS','SBC','SEC','SED','SEI','STA','STX','STY',
     'TAX','TAY','TSX','TXA','TXS','TYA');
 
-var ch: char = #12;
+var ch: char = #10; // echoed before reading. LF character as start value is safe
     sym: symbols;
     text: string;
     val: integer;
@@ -51,11 +50,11 @@ end;
 
 procedure getCh;
 begin
-    write(ch);
+    write(ch); //echo previous character
     if eof then ch := #0 else read(ch);
     ch := upcase(ch);  
 end;
-
+////////////////////////////// lexer ////////////////////////////
 procedure skipWhite;
 begin
     while ch in [#1..#9,#11..#32] do getCh
@@ -122,7 +121,7 @@ begin
         err('unexpected character '''+ch+'''')
     end
 end;
-//////////////////////////////////////////////////////////////////////
+///////////////////////////// parser //////////////////////////////////
 procedure expect (s: symbols);
 begin
     if sym <> s then begin writeln(' *** ERROR: ',s,' expected but ',sym,' found');halt end
@@ -145,6 +144,14 @@ procedure line;
     
     procedure instruction;
     
+        procedure useLabel;
+        begin
+            writeln;
+            writeln(' *** WARNING: using label but not yet implemented');
+            writeln(' *** using stub value 7 instead');
+            val:=7
+        end;
+    
         procedure direct_or_relative;
             
             procedure indexed;
@@ -160,6 +167,7 @@ procedure line;
             end;
             
         begin //direct_or_relative
+            if sym=s_label then useLabel;
             dbug('direct or relative '+intToStr(val));
             getSym;
             case sym of
@@ -173,14 +181,35 @@ procedure line;
         begin
             dbug('indirect');
             getSym;
-            consume(s_num);
+            if sym=s_label then useLabel else expect(s_num);
             dbug('indirect '+intToStr(val));
-            if sym=s_comma then begin getSym; consume(r_X);consume(s_rparen);dbug('indexed indirect (X) ') end
-            else begin
-                    consume(s_rparen);
-                    if sym=s_comma then begin getSym;consume(r_Y);dbug('indirect indexed (Y)') end
-                                   else dbug('absolute indexed')
-                 end
+            getSym;
+            if sym=s_comma 
+                then begin
+                        getSym;
+                        consume(r_X);
+                        consume(s_rparen);
+                        dbug('indexed indirect (X) ')
+                     end
+                else begin
+                        consume(s_rparen);
+                        if sym=s_comma 
+                            then 
+                                begin
+                                    getSym;
+                                    consume(r_Y);
+                                    dbug('indirect indexed (Y)')
+                                end
+                            else dbug('absolute indexed')
+                     end
+        end;
+        
+        procedure immediate;
+        begin
+            getSym;
+            if sym=s_label then useLabel else expect(s_num);
+            dbug('immediate '+intToStr(val));
+            getSym
         end;
     
     begin // instruction
@@ -188,8 +217,8 @@ procedure line;
         getSym;
         case sym of
             s_eol: dbug('implied');
-            s_tjoek: begin getSym; consume(s_num); dbug('immediate '+intToStr(val)) end;
-            s_num: direct_or_relative;
+            s_tjoek: immediate;
+            s_num,s_label: direct_or_relative;
             s_lparen: indirect;
             r_A: begin getSym;dbug('Accumulator') end
         else err('wrong argument')
