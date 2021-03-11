@@ -1,4 +1,7 @@
 # ed6502asm
-a 6502 assembler in pascal. 
-Under construction.
-Just a lexer and a parser for the moment
+a 6502 assembler in pascal.   
+Under construction.  
+  
+testing scanner, parser and translator  
+labels are recognized but not used yet  
+addresscount not implemented yet'  
