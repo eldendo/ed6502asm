@@ -20,7 +20,7 @@ value = number | label .
 program edASM;
 uses sysutils;
 
-const debug=false;
+const debug=false; 
 
 type symbols = (s_mnemonic,s_eol,s_eof,s_label,s_num,s_tjoek,s_comma,s_lparen,s_rparen,s_colon,s_X,s_Y,s_A);
 
@@ -105,9 +105,13 @@ var ch: char = #10; // echoed before reading. LF character as start value is saf
     mnem: mnemonics;
     mMode: memoryModes;
     text: string;
-    val: integer;
-    address: 0..$FFFF = 0;
+    val: word;
+    org: word = $C000;
+    address: word;
     opc: integer;
+    pass:1..2;
+    F:file of char;
+    fromLabel: boolean;
 
 procedure err(s: string);
 begin
@@ -123,20 +127,37 @@ end;
 procedure emit;
 begin
     write(hexStr(address,4),': ',hexStr(opc,2),' ');
+    if (mMode = mm_Rel) and fromLabel then
+        begin
+            val := val-address-2;
+            if (integer(val)<-128) or (integer(val)>127) then err('argument of Branch should be between -128 and 127')
+        end;
     case nrArg[mMode] of
         0: writeln;
-        1: writeln(hexStr(val,2));
+        1: writeln(hexStr(lo(val),2));
         2: writeln(hexStr(lo(val),2),hexStr(hi(val),2))
-    end;
-//    address := address+nrArg[mMode]+1
+    end
 end;
 
 procedure getCh;
 begin
-    write(ch); //echo previous character
-    if eof then ch := #0 else read(ch);
+    if pass=1 then write(ch); //echo previous character
+    if eof(F) then ch := #0 else read(F,ch);
     ch := upcase(ch);  
 end;
+////////////////////////////// labels /////////////////////////////
+
+type labelNodePtr = ^labelNode;
+     labelNode = record
+                    name:string;
+                    value: word;
+                    next: labelNodePtr
+                 end;
+     
+     
+var labList: labelNodePtr = Nil;
+    tmp: labelNodePtr;
+
 ////////////////////////////// scanner ////////////////////////////
 procedure skipWhite;
 begin
@@ -220,7 +241,12 @@ procedure line;
 
     procedure labeldef;
     begin
-        dbug('labeldef found');
+        dbug('labeldef found: '+text+':'+hexStr(address,4));
+        tmp := new(labelNodePtr);
+        tmp^.name := text;
+        tmp^.value := address;
+        tmp^.next := labList;
+        labList := tmp;
         getSym;
         if sym = s_colon then getSym //skip optional colon
     end;
@@ -231,10 +257,15 @@ procedure line;
     
         procedure useLabel;
         begin
-            writeln;
-            writeln(' *** WARNING: using label but not yet implemented');
-            writeln(' *** using stub value 7 instead');
-            val:=7
+            fromLabel := true;
+            if pass=1 then exit;
+            tmp := labList;
+            while tmp<>nil do
+                begin
+                    if tmp^.name = text then begin val := tmp^.value; dbug('>>>'+tmp^.name+' '+hexStr(tmp^.value,4)); exit end
+                                        else tmp := tmp^.next
+                end;
+                err('label not found')
         end;
     
         procedure direct_or_relative;
@@ -266,7 +297,7 @@ procedure line;
                 s_eol: begin 
                             dbug('not indexed');
                             if mnem in [mn_BCC,mn_BCS,mn_BEQ,mn_BMI,mn_BNE,mn_BPL,mn_BVC,mn_BVS] 
-                                then if val>255 then err('one byte of data expected') else mMode := mm_rel
+                                then if (val<=255) or fromLabel then mMode := mm_rel else err('one byte of data expected') 
                                 else if val>255 then mMode := mm_abs else mMode := mm_zp
                        end
             else err('unexpected symbol')
@@ -314,6 +345,7 @@ procedure line;
     begin // instruction
         dbug('instruction found');
         getSym;
+        fromLabel := false;
         case sym of
             s_eol: begin mMode := mm_imp; dbug('implied') end;
             s_tjoek: immediate;
@@ -325,7 +357,7 @@ procedure line;
 //        writeln;writeln(mnem,' ',mMode);
         opc := opcode[mnem,mMode];
         if opc = -1 then err('Not a valid memory mode for this mnemonic');
-        emit;
+        if pass=2 then emit;
         address := address+nrArg[mMode]+1
     end;
 
@@ -343,8 +375,18 @@ begin //main
     writeln('|  (c)2020-2021 ir. Marc Dendooven  |');
     writeln('+-----------------------------------+');
     writeln('testing scanner, parser and codegenerator');
-    writeln('labels are recognized but not used yet');
-    getCh;
-    getSym;
-    while sym <> s_eof do line
+    if paramCount <> 1 then err('one parameter (filename) expected');
+    if not fileExists(paramStr(1)) then err('file does not exist');
+    Assign (F,paramstr(1));
+    Reset (F);
+    address := org;
+    pass:=1; writeln;writeln('Pass 1');writeln('------');
+    getCh; getSym;
+    while sym <> s_eof do line;
+    Reset (F);
+    address := org;
+    pass:=2;writeln; writeln('Pass 2');writeln('------');
+    getCh; getSym;
+    while sym <> s_eof do line;
+    close(F)
 end.
