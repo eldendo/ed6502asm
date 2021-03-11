@@ -20,19 +20,25 @@ value = number | label .
 program edASM;
 uses sysutils;
 
-const debug=true;
+const debug=false;
 
-type symbols = (mn_ADC,mn_AND,mn_ASL,mn_BCC,mn_BCS,mn_BEQ,mn_BIT,mn_BMI,mn_BNE,mn_BPL,mn_BRK,mn_BVC,mn_BVS,
+type symbols = (s_mnemonic,s_eol,s_eof,s_label,s_num,s_tjoek,s_comma,s_lparen,s_rparen,s_colon,s_X,s_Y,s_A);
+
+     mnemonics = (mn_ADC,mn_AND,mn_ASL,mn_BCC,mn_BCS,mn_BEQ,mn_BIT,mn_BMI,mn_BNE,mn_BPL,mn_BRK,mn_BVC,mn_BVS,
         CLC,mn_CLD,mn_CLI,mn_CLV,mn_CMP,mn_CPX,mn_CPY,mn_DEC,mn_DEX,mn_DEY,mn_EOR,mn_INC,mn_INX,mn_INY,mn_JMP,
-        mn_JSR,mn_LDA,mn_LDX,mn_LDY,mn_LSR,mn_NOP,mn_ORA,mn_PHA,mn_PHP,mn_PLA,mn_PLP,mn_ROL,mn_ROR,mn_RTI,mn_RTS,mn_SBC,mn_SEC,mn_SED,mn_SEI,mn_STA,mn_STX,mn_STY,
-        mn_TAX,mn_TAY,mn_TSX,mn_TXA,mn_TXS,mn_TYA,s_eol,s_eof,s_label,s_num,s_tjoek,s_comma,s_lparen,s_rparen,s_colon,r_X,r_Y,r_A);
+        mn_JSR,mn_LDA,mn_LDX,mn_LDY,mn_LSR,mn_NOP,mn_ORA,mn_PHA,mn_PHP,mn_PLA,mn_PLP,mn_ROL,mn_ROR,mn_RTI,
+        mn_RTS,mn_SBC,mn_SEC,mn_SED,mn_SEI,mn_STA,mn_STX,mn_STY,mn_TAX,mn_TAY,mn_TSX,mn_TXA,mn_TXS,mn_TYA);
+     
+     memoryModes = (mm_Imm,mm_Acc,mm_ZP,mm_ZPX,mm_ZPY,mm_Abs,mm_AbX,mm_AbY,mm_Ind,mm_inX,mm_inY,mm_Imp,mm_Rel);
 
-const mn_names: array[mn_ADC..mn_TYA] of string = ('ADC','AND','ASL','BCC','BCS','BEQ','BIT','BMI','BNE','BPL','BRK','BVC','BVS',
+const mn_names: array[mnemonics] of string = 
+    ('ADC','AND','ASL','BCC','BCS','BEQ','BIT','BMI','BNE','BPL','BRK','BVC','BVS',
     'CLC','CLD','CLI','CLV','CMP','CPX','CPY','DEC','DEX','DEY','EOR','INC','INX','INY','JMP',
-    'JSR','LDA','LDX','LDY','LSR','NOP','ORA','PHA','PHP','PLA','PLP','ROL','ROR','RTI','RTS','SBC','SEC','SED','SEI','STA','STX','STY',
-    'TAX','TAY','TSX','TXA','TXS','TYA');
+    'JSR','LDA','LDX','LDY','LSR','NOP','ORA','PHA','PHP','PLA','PLP','ROL','ROR','RTI',
+    'RTS','SBC','SEC','SED','SEI','STA','STX','STY','TAX','TAY','TSX','TXA','TXS','TYA');
     
-const opcode: array[1..56,1..13] of integer = (
+// const opcode: array[mn_ADC..mn_TYA,mm_Imm..mm_Rel] of integer = (
+const opcode: array[mnemonics,memoryModes] of integer = (
 
 {      Imm,Acc,ZP ,ZPX,ZPY,Abs,AbX,AbY,Ind,inX,inY,Imp,Rel}
 {ADC} ($69, -1,$65,$75, -1,$6D,$7D,$79, -1,$61,$71, -1, -1),
@@ -95,8 +101,11 @@ const opcode: array[1..56,1..13] of integer = (
 
 var ch: char = #10; // echoed before reading. LF character as start value is safe
     sym: symbols;
+    mnem: mnemonics;
+    mMode: memoryModes;
     text: string;
     val: integer;
+    address: 0..$FFFF;
 
 procedure err(s: string);
 begin
@@ -115,14 +124,14 @@ begin
     if eof then ch := #0 else read(ch);
     ch := upcase(ch);  
 end;
-////////////////////////////// lexer ////////////////////////////
+////////////////////////////// scanner ////////////////////////////
 procedure skipWhite;
 begin
     while ch in [#1..#9,#11..#32] do getCh
 end;
 
 procedure alfanum;
-var i: symbols;
+var i: mnemonics;
 begin
     sym := s_label;
     text := '';
@@ -131,11 +140,11 @@ begin
             text := text+ch;
             getCh
         end;
-    for i := mn_ADC to mn_TYA do
-            if text = mn_names[i] then sym := i;
-    if text='X' then sym := r_X;
-    if text='Y' then sym := r_Y;
-    if text='A' then sym := r_A
+    for i in mnemonics do
+            if text = mn_names[i] then begin sym := s_mnemonic; mnem := i end;
+    if text='X' then sym := s_X;
+    if text='Y' then sym := s_Y;
+    if text='A' then sym := s_A
 end;
 
 procedure decimal;
@@ -204,6 +213,8 @@ procedure line;
     end;
     
     procedure instruction;
+        
+        var opc: integer;
     
         procedure useLabel;
         begin
@@ -220,20 +231,28 @@ procedure line;
                 dbug('indexed');
                 getSym;
                 case sym of
-                    r_X: dbug('by X');
-                    r_Y: dbug('by Y')
+                    s_X: begin dbug('by X'); if val<=255 then mMode := mm_zpX else mMode := mm_abX end;
+                    s_Y: begin dbug('by Y'); if val<=255 then mMode := mm_zpY else mMode := mm_abY end
                 else err('X or Y expected ')
                 end;
                 getSym
             end;
             
+            procedure notIndexed;
+            begin
+                
+            end;
+            
         begin //direct_or_relative
-            if sym=s_label then useLabel;
+        
+// make diff between direct and relative here !
+        
+            if sym=s_label then useLabel; 
             dbug('direct or relative '+intToStr(val));
             getSym;
             case sym of
                 s_comma: indexed;
-                s_eol: dbug('not indexed');
+                s_eol: begin dbug('not indexed'); if val<=255 then mMode := mm_zp else mMode := mm_abs end
             else err('unexpected symbol')
             end
         end;
@@ -248,9 +267,10 @@ procedure line;
             if sym=s_comma 
                 then begin
                         getSym;
-                        consume(r_X);
+                        consume(s_X);
                         consume(s_rparen);
-                        dbug('indexed indirect (X) ')
+                        dbug('indexed indirect (X) '); // always ZP
+                        mMode := mm_inX
                      end
                 else begin
                         consume(s_rparen);
@@ -258,15 +278,17 @@ procedure line;
                             then 
                                 begin
                                     getSym;
-                                    consume(r_Y);
-                                    dbug('indirect indexed (Y)')
+                                    consume(s_Y);
+                                    dbug('indirect indexed (Y)'); //always ZP
+                                    mMode := mm_inY
                                 end
-                            else dbug('absolute indexed')
+                            else begin dbug('indirect'); mMode := mm_Ind end //always JMP (word)
                      end
         end;
         
         procedure immediate;
         begin
+            mMode := mm_imm;
             getSym;
             if sym=s_label then useLabel else expect(s_num);
             dbug('immediate '+intToStr(val));
@@ -277,19 +299,23 @@ procedure line;
         dbug('instruction found');
         getSym;
         case sym of
-            s_eol: dbug('implied');
+            s_eol: begin mMode := mm_imp; dbug('implied') end;
             s_tjoek: immediate;
             s_num,s_label: direct_or_relative;
             s_lparen: indirect;
-            r_A: begin getSym;dbug('Accumulator') end
-        else err('wrong argument')
-        end
+            s_A: begin mMode := mm_acc; getSym;dbug('Accumulator') end
+            else err('wrong argument')
+        end;
+//        writeln;writeln(mnem,' ',mMode);
+        opc := opcode[mnem,mMode];
+        if opc = -1 then err('Not a valid memory mode for this mnemonic');
+        writeln(hexStr(address,4),': ',hexStr(opc,2),' ',hexStr(val,4))
     end;
 
 begin //line
 //    writeln(sym);
     if sym = s_label then labeldef;
-    if sym in [mn_ADC..mn_TYA] then instruction;
+    if sym = s_mnemonic then instruction;
     if (sym <> s_eof) and (sym <> s_eol) then err('unexpected symbol');    
     if sym = s_eol then getSym;
 end;
@@ -299,8 +325,8 @@ begin //main
     writeln('| edASM - an assembler for the 6502 |');
     writeln('|  (c)2020-2021 ir. Marc Dendooven  |');
     writeln('+-----------------------------------+');
-    writeln('testing lexer and parser');
+    writeln('testing scanner and parser');
     getCh;
     getSym;
-    while sym <> s_eof do line 
+    while sym <> s_eof do line
 end.
