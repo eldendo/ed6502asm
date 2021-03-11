@@ -106,7 +106,8 @@ var ch: char = #10; // echoed before reading. LF character as start value is saf
     mMode: memoryModes;
     text: string;
     val: integer;
-    address: 0..$FFFF;
+    address: 0..$FFFF = 0;
+    opc: integer;
 
 procedure err(s: string);
 begin
@@ -119,14 +120,15 @@ begin
     if debug then writeln(' >>>',msg)
 end;
 
-procedure emit(address:word;opc:byte;argument:word);
+procedure emit;
 begin
     write(hexStr(address,4),': ',hexStr(opc,2),' ');
     case nrArg[mMode] of
         0: writeln;
         1: writeln(hexStr(val,2));
         2: writeln(hexStr(lo(val),2),hexStr(hi(val),2))
-    end
+    end;
+//    address := address+nrArg[mMode]+1
 end;
 
 procedure getCh;
@@ -225,7 +227,7 @@ procedure line;
     
     procedure instruction;
         
-        var opc: integer;
+//        var opc: integer;
     
         procedure useLabel;
         begin
@@ -323,7 +325,8 @@ procedure line;
 //        writeln;writeln(mnem,' ',mMode);
         opc := opcode[mnem,mMode];
         if opc = -1 then err('Not a valid memory mode for this mnemonic');
-        emit(address,opc,val)
+        emit;
+        address := address+nrArg[mMode]+1
     end;
 
 begin //line
@@ -339,9 +342,8 @@ begin //main
     writeln('| edASM - an assembler for the 6502 |');
     writeln('|  (c)2020-2021 ir. Marc Dendooven  |');
     writeln('+-----------------------------------+');
-    writeln('testing scanner, parser and translator');
-    writeln('labels are recognized but not used');
-    writeln('addresscount not implemented yet');
+    writeln('testing scanner, parser and codegenerator');
+    writeln('labels are recognized but not used yet');
     getCh;
     getSym;
     while sym <> s_eof do line
