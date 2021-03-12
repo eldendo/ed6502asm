@@ -109,9 +109,10 @@ var ch: char = #10; // echoed before reading. LF character as start value is saf
     org: word = $C000;
     address: word;
     opc: integer;
-    pass:1..2;
+    pass:integer;
     F:file of char;
     fromLabel: boolean;
+    LnNum: cardinal = 1000;
 
 procedure err(s: string);
 begin
@@ -136,6 +137,21 @@ begin
         0: writeln;
         1: writeln(hexStr(lo(val),2));
         2: writeln(hexStr(lo(val),2),hexStr(hi(val),2))
+    end
+end;
+
+procedure emit_data;
+begin
+    write(lnNum,' data ',opc);inc(lnNum);
+    if (mMode = mm_Rel) and fromLabel then
+        begin
+            val := val-address-2;
+            if (integer(val)<-128) or (integer(val)>127) then err('argument of Branch should be between -128 and 127')
+        end;
+    case nrArg[mMode] of
+        0: writeln;
+        1: writeln(',',lo(val));
+        2: writeln(',',lo(val),',',hi(val))
     end
 end;
 
@@ -358,6 +374,7 @@ procedure line;
         opc := opcode[mnem,mMode];
         if opc = -1 then err('Not a valid memory mode for this mnemonic');
         if pass=2 then emit;
+        if pass=3 then emit_data;
         address := address+nrArg[mMode]+1
     end;
 
@@ -388,5 +405,21 @@ begin //main
     pass:=2;writeln; writeln('Pass 2');writeln('------');
     getCh; getSym;
     while sym <> s_eof do line;
-    close(F)
+    // additional pass to generate c64 basic program with datastatements
+    Reset (F);
+    address := org;
+    pass:=3;writeln; writeln('Pass 3');writeln('------');
+    writeln('cut and past following lines in (vice) emulator');writeln;
+    writeln('10 let a = ',org);
+    writeln('20 read b');
+    writeln('30 if b=-1 then 70');
+    writeln('40 poke a,b');
+    writeln('50 let a=a+1');
+    writeln('60 goto 20');
+    writeln('70 sys ',org);
+    getCh; getSym;
+    while sym <> s_eof do line;
+    close(F);
+    writeln(lnNum,' data -1');
+    writeln;
 end.
