@@ -1,6 +1,7 @@
 (**************************************
 * edASM - an assembler for the 6502   *
 * (c)2020-2021 by ir. Marc Dendooven  *
+*         VERSION DEV 0.1             *
 **************************************)
 
 (* EBNF
@@ -404,6 +405,7 @@ begin //main
     writeln('+-----------------------------------+');
     writeln('| edASM - an assembler for the 6502 |');
     writeln('|  (c)2020-2021 ir. Marc Dendooven  |');
+    writeln('|          VERSION DEV 0.1          |');    
     writeln('+-----------------------------------+');
     writeln('testing scanner, parser and codegenerator');
     if paramCount <> 1 then err('one parameter (filename) expected');
