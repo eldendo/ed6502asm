@@ -10,7 +10,7 @@ For testing purposes all output comes on screen.
 2. The translated code in Hex
 3. A generated c64 basic text containing the translated program in DATA statements. This text can be cut & paste in the VICE emulator.
 
-
+![screenshot](./edASM.png)
  
 Version DEV 0.1
 ---
