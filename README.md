@@ -3,7 +3,7 @@ a 6502 assembler in pascal.
 Under construction.  
 testing scanner, parser and codegenerator  
 
-usage: ./edASM <file>
+usage: ./edASM file
 
 For testing purposes all output comes on screen.
 1. echoed code (and eventual error messages)
