@@ -15,7 +15,7 @@ For testing purposes all output comes on screen.
 Version DEV 0.1
 ---
 Translates all (legal) instructions and memory modes.  
-Forward and backward labels are working
+Forward and backward labels are working  
 Two optional pseudo instructions provided:  
 - ORG <address> (address to translate to. If ORG is ommited $C000 is used)  
 - END (end of program. Can be ommited when at end of file)  
