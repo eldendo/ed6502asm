@@ -28,10 +28,10 @@ To Do
 - DB pseudoinstruction (insert Data Byte)
 - support for characters and strings of characters.  
 -- support for characters OK. now following is allowed  
-´´´  
+```  
             LDA # '*'
 START:      JSR $FFD2
             JMP START
-´´´  
+```  
 -- stringsupport ok in scanner. needs DB pseudo instruction DB for use  
 
