@@ -23,7 +23,7 @@ uses sysutils;
 
 const debug=false; 
 
-type symbols = (s_mnemonic,s_eol,s_eof,s_label,s_num,s_tjoek,s_comma,s_lparen,s_rparen,s_colon,s_X,s_Y,s_A);
+type symbols = (s_mnemonic,s_eol,s_eof,s_label,s_num,s_string,s_tjoek,s_comma,s_lparen,s_rparen,s_colon,s_X,s_Y,s_A);
 
      mnemonics = (mn_ADC,mn_AND,mn_ASL,mn_BCC,mn_BCS,mn_BEQ,mn_BIT,mn_BMI,mn_BNE,mn_BPL,mn_BRK,mn_BVC,mn_BVS,
         CLC,mn_CLD,mn_CLI,mn_CLV,mn_CMP,mn_CPX,mn_CPY,mn_DEC,mn_DEX,mn_DEY,mn_EOR,mn_INC,mn_INX,mn_INY,mn_JMP,
@@ -234,6 +234,20 @@ begin
         end
 end;
 
+procedure aString;
+begin
+    sym := s_string;
+    text := '';
+    getCh;
+    while ch <> '"' do 
+        begin 
+            if ch=#10 then err('closing quotes missing');
+            text := text+ch; 
+            getCh 
+        end; 
+    getCh
+end;
+
 procedure getSym;
 begin
     skipWhite;
@@ -250,6 +264,8 @@ begin
     '(': begin sym := s_lparen; getCh end;
     ')': begin sym := s_rparen; getCh end;
     ':': begin sym := s_colon; getCh end;
+    '''': begin sym := s_num; getCh; val := ord(ch); getCh; if ch<>'''' then err('quote expected'); getCh end;
+    '"': aString
     else
         err('unexpected character '''+ch+'''')
     end
