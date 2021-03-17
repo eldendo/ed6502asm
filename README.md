@@ -33,5 +33,22 @@ To Do
 START:      JSR $FFD2
             JMP START
 ```  
--- stringsupport ok in scanner. needs DB pseudo instruction DB for use  
+-- DB pseudoinstruction OK  
+-- strings OK  
+-- th following program says hello world on a c64  
+```  
+; HELLO WORLD IN ED6502ASM
+
+        LDX #0
+LOOP:   LDA TEXT,X
+        BEQ EXIT
+        JSR $FFD2 ; PRINT THE CHARACTER IN A
+        INX
+        JMP LOOP
+EXIT:   RTS
+        
+TEXT:   DB "HELLO WORLD",0
+
+```  
+
 
