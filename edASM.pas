@@ -29,8 +29,11 @@ type symbols = (s_mnemonic,s_eol,s_eof,s_label,s_num,s_string,s_tjoek,s_comma,s_
         CLC,mn_CLD,mn_CLI,mn_CLV,mn_CMP,mn_CPX,mn_CPY,mn_DEC,mn_DEX,mn_DEY,mn_EOR,mn_INC,mn_INX,mn_INY,mn_JMP,
         mn_JSR,mn_LDA,mn_LDX,mn_LDY,mn_LSR,mn_NOP,mn_ORA,mn_PHA,mn_PHP,mn_PLA,mn_PLP,mn_ROL,mn_ROR,mn_RTI,
         mn_RTS,mn_SBC,mn_SEC,mn_SED,mn_SEI,mn_STA,mn_STX,mn_STY,mn_TAX,mn_TAY,mn_TSX,mn_TXA,mn_TXS,mn_TYA,
-        pi_ORG,pi_END);
-
+        pi_ORG,pi_DB,pi_END);
+        
+     realInstr = mn_ADC..mn_TYA;
+//     pseudoInstr = pi_ORG..pi_END;
+    
      memoryModes = (mm_Imm,mm_Acc,mm_ZP,mm_ZPX,mm_ZPY,mm_Abs,mm_AbX,mm_AbY,mm_Ind,mm_inX,mm_inY,mm_Imp,mm_Rel);
 
 const NrArg: array[memoryModes] of 0..2 = (1,0,1,1,1,2,2,2,2,1,1,0,1);
@@ -40,11 +43,11 @@ const mn_names: array[mnemonics] of string =
     'CLC','CLD','CLI','CLV','CMP','CPX','CPY','DEC','DEX','DEY','EOR','INC','INX','INY','JMP',
     'JSR','LDA','LDX','LDY','LSR','NOP','ORA','PHA','PHP','PLA','PLP','ROL','ROR','RTI',
     'RTS','SBC','SEC','SED','SEI','STA','STX','STY','TAX','TAY','TSX','TXA','TXS','TYA',
-    'ORG','END');
+    'ORG','DB','END');
     
 
     
-const opcode: array[mnemonics,memoryModes] of integer = (
+const opcode: array[realInstr,memoryModes] of integer = (
 
 {      Imm,Acc,ZP ,ZPX,ZPY,Abs,AbX,AbY,Ind,inX,inY,Imp,Rel}
 {ADC} ($69, -1,$65,$75, -1,$6D,$7D,$79, -1,$61,$71, -1, -1),
@@ -102,12 +105,11 @@ const opcode: array[mnemonics,memoryModes] of integer = (
 {TSX} ( -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,$BA, -1),
 {TXA} ( -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,$8A, -1),
 {TXS} ( -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,$9A, -1),
-{TYA} ( -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,$98, -1),
-
-{ORG} ( -1, -1, -2, -1, -1, -2, -1, -1, -1, -1, -1, -1, -1),
-{END} ( -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -3, -1)
+{TYA} ( -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,$98, -1)
 {      Imm,Acc,ZP ,ZPX,ZPY,Abs,AbX,AbY,Ind,inX,inY,Imp,Rel}
 );
+
+const org = $C000; //default address to assemble to
 
 var ch: char = #10; // echoed before reading. LF character as start value is safe
     sym: symbols;
@@ -115,13 +117,14 @@ var ch: char = #10; // echoed before reading. LF character as start value is saf
     mMode: memoryModes;
     text: string;
     val: word;
-    org: word = $C000;
     address: word;
     opc: integer;
     pass:integer;
     F:file of char;
     fromLabel: boolean;
     LnNum: cardinal = 1000;
+
+///////////////////////// output //////////////////////////////////
 
 procedure err(s: string);
 begin
@@ -134,7 +137,7 @@ begin
     if debug then writeln(' >>>',msg)
 end;
 
-procedure emit;
+procedure emit; /// must be made more simple
 begin
     write(hexStr(address,4),': ',hexStr(opc,2),' ');
     if (mMode = mm_Rel) and fromLabel then
@@ -151,7 +154,7 @@ begin
     end
 end;
 
-procedure emit_data;
+procedure emit_data; /// must be made more simple
 begin
     write(lnNum,' data ',opc);inc(lnNum);
     if (mMode = mm_Rel) and fromLabel then
@@ -386,10 +389,45 @@ procedure line;
             dbug('immediate '+intToStr(val));
             getSym
         end;
+        
+        procedure pseudo;
+            procedure DBitem; // this must be done more simple
+            var i: integer;
+            begin
+                case sym of
+                    s_num: begin opc := val; mMode := mm_imp;
+                                 if pass=2 then emit;
+                                 if pass=3 then emit_data;
+                                 inc(address)
+                           end;
+                    s_string: begin mMode := mm_imp;
+                                for i := 1 to length(text) do
+                                  begin
+                                     opc := ord(text[i]);
+                                     if pass=2 then emit;
+                                     if pass=3 then emit_data;
+                                     inc(address)
+                                  end
+                           end;
+                    else err('BAD argument for DB')
+                end;
+                getSym;
+            end;
+        begin
+            case mnem of
+                pi_ORG: begin consume(s_num); address := val end;
+                pi_END: sym := s_eof;
+                pi_DB: begin 
+                            DBitem;
+                            while sym=s_comma do begin getSym; DBItem end 
+                       end
+            end
+        end;
     
     begin // instruction
         dbug('instruction found');
         getSym;
+        if mnem in [pi_ORG..pi_END] then begin pseudo;exit end;
         fromLabel := false;
         case sym of
             s_eol: begin mMode := mm_imp; dbug('implied') end;
@@ -402,8 +440,6 @@ procedure line;
 //        writeln;writeln(mnem,' ',mMode);
         opc := opcode[mnem,mMode];
         if opc = -1 then err('Not a valid memory mode for this mnemonic');
-        if opc = -2 then begin org := val; exit end;
-        if opc = -3 then begin sym := s_eof; exit end;
         if pass=2 then emit;
         if pass=3 then emit_data;
         address := address+nrArg[mMode]+1
