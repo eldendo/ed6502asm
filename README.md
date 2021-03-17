@@ -35,7 +35,7 @@ START:      JSR $FFD2
 ```  
 -- DB pseudoinstruction OK  
 -- strings OK  
--- th following program says hello world on a c64  
+-- the following program says hello world on a c64  
 ```  
 ; HELLO WORLD IN ED6502ASM
 
