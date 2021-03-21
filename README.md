@@ -43,7 +43,9 @@ To Do
 - Clean up code.
 - ~~Parse pseudo instruction independently (since arguments are not regular memory modes)~~
 - ~~DB pseudoinstruction (insert Data Byte)~~
-- ~~support for characters and strings of characters.  ~~
+- ~~support for characters and strings of characters~~
+
+
 -- support for characters OK. now following is allowed  
 ```  
             LDA # '*'
