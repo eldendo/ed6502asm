@@ -11,7 +11,22 @@ For testing purposes all output comes on screen.
 3. A generated c64 basic text containing the translated program in DATA statements. This text can be cut & paste in the VICE emulator.
 
 ![screenshot](./edASM.png)
- 
+
+Version DEV 0.2  
+---
+- multiple ORG bug OK
+- Independed parsing of pseudoinstructions
+- DB pseudo instruction
+- EQU pseudo instruction
+- support for characters and strings
+
+To DO  
+
+- More testing required.  
+- Clean up code. (one file ore separate units ?)
+- Test if label is not used yet
+- DS pseudoinstruction (skip memory) (with or without fill ?) 
+
 Version DEV 0.1
 ---
 Translates all (legal) instructions and memory modes.  
@@ -24,9 +39,9 @@ To Do
 
 - More testing required.  
 - Clean up code.
-- Parse pseudo instruction independently (since arguments are not regular memory modes)
-- DB pseudoinstruction (insert Data Byte)
-- support for characters and strings of characters.  
+- ~~Parse pseudo instruction independently (since arguments are not regular memory modes)~~
+- ~~DB pseudoinstruction (insert Data Byte)~~
+- ~~support for characters and strings of characters.  ~~
 -- support for characters OK. now following is allowed  
 ```  
             LDA # '*'
