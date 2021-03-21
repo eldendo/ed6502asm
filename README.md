@@ -19,13 +19,15 @@ Version DEV 0.2
 - DB pseudo instruction
 - EQU pseudo instruction
 - support for characters and strings
+- extended (cut & paste) BASIC loader (too complex ???) 
 
 To DO  
 
 - More testing required.  
-- Clean up code. (one file ore separate units ?)
+- Clean up code. (one file or separate units ?)
 - Test if label is not used yet
-- DS pseudoinstruction (skip memory) (with or without fill ?) 
+- DS pseudoinstruction (skip memory) (with or without fill ?)
+- simple independed output generator
 
 Version DEV 0.1
 ---
