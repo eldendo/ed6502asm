@@ -9,19 +9,26 @@ unit printOut;
 
 interface
 
-type printModes = (m_list,m_basic);
+    type printModes = (m_list,m_basic);
 
     procedure openPrintMode(pm: printModes);
     procedure closePrintMode;
-
-    procedure emit(address:word; bytes:byte; opc:byte; arg:word; var org:boolean);
+    procedure emit(address:word; bytes:byte; opc:byte; arg:word);
+    procedure newOrg;
 
 implementation
 
+    type orgState = (UnDefined,UnChanged,Changed);
+
     var printMode: printModes;
         LnNum: cardinal;
+        org: orgState = UnDefined;
         
-
+    procedure newOrg;
+    begin
+        org := Changed
+    end;
+    
     procedure openPrintMode(pm: printModes);
 
         procedure basic;
@@ -51,6 +58,7 @@ implementation
 
     begin
         printMode := pm;
+        org := UnDefined;
         case printmode of
             m_list: ;
             m_basic: basic;
@@ -66,7 +74,7 @@ implementation
         end
     end;
 
-    procedure emit(address:word; bytes:byte; opc:byte; arg:word; var org:boolean);
+    procedure emit(address:word; bytes:byte; opc:byte; arg:word);
 
         procedure list;
         begin
@@ -80,7 +88,7 @@ implementation
         
         procedure basic;
         begin
-            if org then begin writeln(lnNum,' data ',-2,',',address);inc(lnNum); org := false end;
+            if org = Changed then begin writeln(lnNum,' data ',-2,',',address);inc(lnNum); org := UnChanged end;
             write(lnNum,' data ',opc);inc(lnNum);
             case bytes of
                 1: writeln;
@@ -91,6 +99,7 @@ implementation
 
 
     begin
+        if org = UnDefined then begin writeln('ERROR: ORG missing at start of program'); halt end;
         case printMode of
             m_list: list;
             m_basic: basic;
